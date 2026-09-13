@@ -1,0 +1,18 @@
+{
+  "collection": "ms_codeup_8fadf6f0",
+  "failed_files": [],
+  "indexed_chunks": 2,
+  "indexed_files": 2,
+  "last_completed_at": "2026-09-13T18:18:20.932140Z",
+  "last_started_at": "2026-09-13T18:18:18.451168Z",
+  "last_success_at": "2026-09-13T18:18:20.932140Z",
+  "milvus_uri": "~/.memsearch/milvus.db",
+  "operation": "index",
+  "paths": [
+    "/Users/gorwaywong/Projects/codeup/.memsearch/memory"
+  ],
+  "schema_version": 1,
+  "status": "ok",
+  "total_files": 2,
+  "updated_at": "2026-09-13T18:18:20.932140Z"
+}

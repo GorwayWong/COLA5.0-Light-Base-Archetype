@@ -1,0 +1,13 @@
+spring:
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://postgres:5432/tolink_test}
+    username: ${SPRING_DATASOURCE_USERNAME:tolink}
+    password: ${SPRING_DATASOURCE_PASSWORD:tolink_test_password}
+  data:
+    redis:
+      host: ${SPRING_DATA_REDIS_HOST:redis}
+      port: ${SPRING_DATA_REDIS_PORT:6379}
+
+tolink:
+  security:
+    permit-api-docs: false
