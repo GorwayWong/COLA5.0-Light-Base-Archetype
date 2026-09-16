@@ -6,6 +6,8 @@ ToLink vNext is a clean, modular-monolith foundation built from the official Ali
 
 ## Architecture
 
+For the current implementation map, runtime structure, security boundaries, and test coverage, see [架构总览](ARCHITECTURE.md).
+
 The project uses one Maven module with four package layers:
 
 - `adapter`: inbound transport and boundary configuration.
