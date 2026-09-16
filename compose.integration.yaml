@@ -2,7 +2,7 @@ services:
   backend:
     build:
       target: test
-    command: ["./mvnw", "-B", "verify", "-Pintegration"]
+    command: ["./mvnw", "-B", "-pl", "bootstrap", "-am", "verify", "-Pintegration"]
     environment:
       SPRING_PROFILES_ACTIVE: integration
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/tolink_test

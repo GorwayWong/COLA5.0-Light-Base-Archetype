@@ -6,13 +6,15 @@ WORKDIR /workspace
 COPY .mvn .mvn
 COPY mvnw pom.xml ./
 RUN chmod +x mvnw
-COPY src src
+COPY shared shared
+COPY agent agent
+COPY bootstrap bootstrap
 RUN --mount=type=cache,target=/root/.m2 \
-    ./mvnw -B -DskipTests package
+    ./mvnw -B -pl bootstrap -am -DskipTests package
 
 FROM build AS test
 
-CMD ["./mvnw", "-B", "verify", "-Pintegration"]
+CMD ["./mvnw", "-B", "-pl", "bootstrap", "-am", "verify", "-Pintegration"]
 
 FROM eclipse-temurin:21.0.12_8-jre-jammy AS runtime
 
@@ -23,7 +25,7 @@ RUN apt-get update \
     && useradd --system --uid 10001 --create-home --shell /usr/sbin/nologin tolink
 
 WORKDIR /app
-COPY --from=build /workspace/target/tolink-0.1.0-SNAPSHOT.jar /app/app.jar
+COPY --from=build /workspace/bootstrap/target/tolink-bootstrap-0.1.0-SNAPSHOT.jar /app/app.jar
 
 USER tolink
 STOPSIGNAL SIGTERM

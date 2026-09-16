@@ -32,7 +32,16 @@ mvn -B archetype:generate \
   -DinteractiveMode=false
 ```
 
-The generated Charge/Account examples and their old technical dependencies were removed. The four COLA Light package layers remain.
+The generated Charge/Account examples and their old technical dependencies were removed. The reactor now contains a `shared` jar, an `agent` bounded-context jar, and an executable `bootstrap` jar. Future bounded contexts are one jar each and keep the four COLA Light package layers inside the context; `templates/domain-module` is a copyable skeleton and is not part of the reactor.
+
+## Modular-monolith rules
+
+- `bootstrap` owns the composition root and global runtime configuration; it assembles the enabled domain jars.
+- `shared` remains framework-independent and contains only stable, domain-neutral contracts.
+- A domain module owns its adapter, application, domain, and infrastructure packages.
+- `agent` is the first empty domain skeleton; its AgentScope configuration and properties live in its infrastructure package.
+- Domain modules do not depend on another domain's `domain` or `infrastructure` packages. Reviewed synchronous calls target only a narrow `application.api`; asynchronous collaboration uses events or caller-owned ports.
+- Flyway runs once from `bootstrap`. Domain migrations live in the owning domain jar and use one repository-wide monotonic version sequence (`V1__baseline.sql`, `V2__identity_baseline.sql`, ...).
 
 ## AgentScope compatibility policy
 

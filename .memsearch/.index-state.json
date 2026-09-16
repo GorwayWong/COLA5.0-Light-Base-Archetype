@@ -1,18 +1,18 @@
 {
-  "collection": "ms_codeup_8fadf6f0",
+  "collection": "ms_tolink_9d3a1644",
   "failed_files": [],
-  "indexed_chunks": 4,
-  "indexed_files": 3,
-  "last_completed_at": "2026-09-15T12:26:55.710669Z",
-  "last_started_at": "2026-09-15T12:26:52.946312Z",
-  "last_success_at": "2026-09-15T12:26:55.710669Z",
+  "indexed_chunks": 0,
+  "indexed_files": 1,
+  "last_completed_at": "2026-09-16T17:03:42.523262Z",
+  "last_started_at": "2026-09-16T17:03:39.339346Z",
+  "last_success_at": "2026-09-16T17:03:42.523262Z",
   "milvus_uri": "~/.memsearch/milvus.db",
   "operation": "index",
   "paths": [
-    "/Users/gorwaywong/Projects/codeup/.memsearch/memory"
+    "/Users/gorwaywong/Projects/codeup/tolink/.memsearch/memory"
   ],
   "schema_version": 1,
   "status": "ok",
-  "total_files": 3,
-  "updated_at": "2026-09-15T12:26:55.710669Z"
+  "total_files": 1,
+  "updated_at": "2026-09-16T17:03:42.523262Z"
 }
