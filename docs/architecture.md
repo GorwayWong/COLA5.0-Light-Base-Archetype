@@ -1,11 +1,28 @@
-# COLA Light 模块化单体
+# 架构设计与开发规约
 
-模块依赖为 bootstrap → 业务领域 → shared，bootstrap 可直接依赖 shared。shared 不包含业务服务或领域模型；业务模块不依赖 bootstrap。project-sample 是唯一复制模板，生产代码只定义包职责。
+## 1. 模块划分
 
-根包为 org.xaspire.project，每个领域占一个一级子包；遵守该命名约定，供架构测试自动识别：
+本工程采用模块化单体架构。业务按领域划分 Maven 模块，领域内部按包分层，最终由一个 Spring Boot 应用运行。
 
 ```text
-<domain>
+project-bootstrap
+    ├── 业务领域模块
+    │       └── project-shared
+    └── project-shared
+```
+
+- `bootstrap`：唯一组合根，负责启动、全局配置和实现选择。
+- `shared`：提供通用契约及技术能力，不承载业务服务或领域模型。
+- 领域模块：独立维护公开契约、用例、领域规则和技术适配。
+
+【强制】领域模块不得依赖 bootstrap，shared 不得依赖领域模块。领域模块允许通过对方顶层 `api` 协作，禁止形成模块依赖环。
+
+Java 根包为 `org.xaspire.project`。模块使用 `project-<领域名>` 命名，对应包为 `org.xaspire.project.<领域名>`；该约定用于 ArchUnit 识别模块边界。
+
+## 2. 包分层
+
+```text
+<领域名>
 ├── api/{facade,dto,command,query}
 ├── adapter/{web,mq,job}
 ├── application/{service,command,query,assembler}
@@ -21,50 +38,75 @@
     └── client
 ```
 
-## 内部方向
+以下箭头表示代码依赖：
 
-adapter → application → domain ← infrastructure。adapter 也可依赖本模块 api.facade，接口由 application 实现。application 管编排、事务、事件发布和 DTO 转换；infrastructure 实现 domain.repository/port，不依赖 application、adapter 或 api。
+```mermaid
+flowchart LR
+    adapter --> application
+    application --> domain
+    infrastructure --> domain
+    adapter --> api
+    application --> api
+```
 
-domain 只依赖本领域 domain 和 java.lang/java.util/java.time/java.math，不引入 Spring、MyBatis、Redis、JPA、HTTP Client或shared技术封装。api 不暴露内部模型或技术类型，可使用 Jakarta Validation 描述请求契约。
+| 层 | 职责 | 允许依赖的本模块层 |
+| --- | --- | --- |
+| `api` | 公开 Facade、DTO、Command、Query | api |
+| `adapter` | HTTP、消息及任务入口 | api、application |
+| `application` | 用例编排、事务、事件发布及数据转换 | api、domain |
+| `domain` | 业务模型、领域规则、仓储和输出端口契约 | domain |
+| `infrastructure` | 仓储、输出端口及外部系统适配 | domain |
 
-层处于一个 Maven模块，编译路径上的技术依赖对全部包可见；ArchUnit 强制保护包级边界。
+同层类型可以互相引用。Maven 约束模块依赖，ArchUnit 约束包依赖；单个领域模块的编译路径对其内部各包可见。
 
-## 跨领域通信
+### 2.1 领域层
 
-同步协作只引用对方顶层 api；业务完成后的通知可用事件。domain.event 是内部领域事实，公开消费契约位于 api，由 application 转换/发布。其他模块不得引用 domain.event 来绕过公开边界。
+【强制】domain 仅依赖本模块 domain，以及 `java.lang`、`java.util`、`java.time`、`java.math` 包下的 JDK 类型。
 
-## Composition Root
+禁止引入 Spring、MyBatis、Redis、JPA、HTTP Client 或 shared 技术封装。Repository 与 Port 只定义领域能力，不暴露 SQL、ORM、缓存或厂商 SDK 类型。
 
-Application 位于 bootstrap，仅扫描 bootstrap。接口与实现通过 bootstrap 的 @Bean 或明确 @Import 注册；Mapper 由 bootstrap @MapperScan 注册。替换实现只修改组合根。
+### 2.2 公开契约
 
-application 允许 @Service/@Transactional，@Service 是允许的应用层标记，不扩大包扫描，也不允许应用层 @Configuration。infrastructure/shared 不自动声明 @Component/@Repository/@Configuration；domain 禁止所有框架注解。
+【强制】api 不得暴露内部模型、持久化对象或技术类型。请求约束可以使用 Jakarta Validation。
 
-Spring Boot 在启动模块创建 DataSource、Redis和事务管理器。空白模板没有具体业务 Bean 或装配配置；新增领域能力后，由 bootstrap 显式选择其实现。
+同步协作访问对方 api。跨模块事件的消费契约也应在 api 公开，由 application 转换、发布内部 `domain.event`，不得直接引用其他模块的领域事件。
 
-## Shared
+## 3. 组合根与事务
 
-响应、异常、ID 契约使用纯 Java；JSON/Redis 技术包允许对应框架。业务缓存键与失效策略属于领域 infrastructure。RedisLock 是 SET NX + TTL 租约锁，Lua 比较 token 后删除，不续租、不重入、没有 fencing；调用方每次使用新 token 并在租期内完成工作。
+启动类 `org.xaspire.project.bootstrap.Application` 只扫描 bootstrap 包。业务实现通过 bootstrap 的 `@Bean` 或明确的 `@Import` 注册，Mapper 通过 `@MapperScan` 注册。
 
-## Flyway
+| 位置 | 注解与注册约束 |
+| --- | --- |
+| application | 允许 `@Service`、`@Transactional`；实现须由 bootstrap 显式注册，禁止 `@Configuration` |
+| domain | 禁止框架注解 |
+| infrastructure、shared | 禁止自动组件声明；由 bootstrap 选择实现 |
 
-bootstrap 初始化一次 Flyway，扫描实际领域 JAR 的 classpath:db/migration，共享 public.flyway_schema_history 和仓库级唯一递增版本。模板不预设表结构或迁移；实际业务领域按需要创建 schema/SQL。已应用的迁移不能修改或重用版本号。
+Spring Boot 在启动模块创建 DataSource、Redis 连接及事务管理器。事务边界归 application，持久化实现归 infrastructure；替换实现时保持领域契约，通过组合根调整实现选择。
 
-bootstrap 基础设施测试单独扫描测试资源 db/integration-migration，使用 integration_probe.integration_flyway_schema_history，避免技术探针占用 public 或与业务迁移编号冲突；测试资源不进入应用 JAR。
+## 4. 共享能力
 
-## Architecture as Code
+shared 中的响应、异常和 ID 契约使用纯 Java；JSON、Redis 技术包可以依赖相应框架。业务缓存键、数据结构和失效策略归所属领域的 infrastructure。
 
-project-sample 的 ModuleArchitectureTest 随复制带走，扫描本模块生产代码：
-- domain 纯净；
-- 五层方向；
-- api 不依赖技术类型；
-- 跨领域只访问 api，禁止访问 bootstrap。
+`RedisLock` 为非重入租约锁，通过 SET NX 与 TTL 获取，释放时以 Lua 校验所有权 token。每次获取使用新 token；无续租及 fencing 能力，调用方须在租期内完成工作。数据库一致性由业务约束和事务保障。
 
-空模板明确允许空层；ModuleArchitectureRulesTest 的正例和反例证明规则可捕获后续代码的违规依赖。测试夹具只属于 test，不打包到生产。
+## 5. 数据库迁移
 
-bootstrap 的全局 ArchitectureTest 覆盖全部启用模块，继续检查 shared/业务/bootstrap 方向、模块环与组合根政策；全局反例与业务模板独立，避免依赖演示模型。
+生产 Flyway 由 bootstrap 初始化一次，扫描领域 JAR 中的 `classpath:db/migration`，共用 `public.flyway_schema_history`。
 
-## 运行
+- 【强制】迁移版本在整个仓库内唯一、递增，已应用的迁移不得修改或重用版本号。
+- 【推荐】表结构及迁移由所属领域维护，按业务需要划分 schema。
+- 空白模板不提供表结构或迁移脚本，业务开发时按需创建。
 
-dev 开放文档、prod关闭文档；健康端点公开，业务访问必须由实际安全配置授权。readiness包含数据库，Redis是技术缓存。启动需显式选择profile。
+基础设施测试扫描 `db/integration-migration`，写入 `integration_probe.integration_flyway_schema_history`。测试迁移与业务历史隔离，测试资源不进入运行 JAR。
 
-参考 [COLA官方架构](https://github.com/alibaba/COLA) 和 [ArchUnit分层规则](https://www.archunit.org/userguide/html/000_Index.html#_layer_checks)；架构按本工程的领域零框架、顶层api与唯一组合根契约实施。
+## 6. 架构检查
+
+| 位置 | 检查范围 |
+| --- | --- |
+| 领域模块 `ModuleArchitectureTest` | 领域纯净、内部层方向、API 技术类型、跨模块 API |
+| bootstrap `ArchitectureTest` | 全部启用模块、shared 方向、组合根及模块依赖环 |
+| 对应规则验证测试 | 合法依赖通过，违规依赖被拒绝 |
+
+空模板通过可选层与 `allowEmptyShould(true)` 允许空包。测试夹具仅位于 test；复制模板时一并携带模块内规则和验证测试。
+
+架构参考：[COLA](https://github.com/alibaba/COLA)、[ArchUnit 分层检查](https://www.archunit.org/userguide/html/000_Index.html#_layer_checks)。

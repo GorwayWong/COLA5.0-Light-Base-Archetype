@@ -1,67 +1,37 @@
-# Tolink
+# 仓库开发规约
 
-When you try to edit agents.md, stop and discuss with me.
+## 1. 适用范围
 
-## 1. Core Engineering Principles
+本规约适用于本仓库的代码、配置和文档维护。修改本文件前，须先与维护者确认变更范围。模块与分层约束见[架构设计](docs/architecture.md)。
 
-### Think Before Coding
+## 2. 需求与设计
 
-**Don't assume. Don't hide confusion. Surface tradeoffs.**
+- 【强制】说明影响业务行为、公开接口或实现方向的关键假设。存在实质歧义时，先澄清再实施。
+- 【推荐】对低风险、可逆的实现细节，采用与现有工程一致的简单方案。
+- 【强制】实现范围以需求为准，不预设未提出的功能、扩展点或配置能力。
+- 【推荐】优先使用直接、可读的实现；不为单次使用引入额外抽象。
 
-Before implementing:
+## 3. 变更范围
 
-- State your assumptions explicitly when they materially affect the solution.
-- If multiple interpretations would significantly change business behavior, public interfaces, or the implementation direction, present them rather than choosing silently.
-- Ask for clarification only when ambiguity materially affects business behavior, public interfaces, or the implementation direction. For low-risk, easily reversible implementation details, use the simplest interpretation consistent with the existing codebase.
-- If a simpler approach exists, say so. Push back when warranted.
+- 【强制】每项修改须能够对应具体需求，不夹带无关重构、格式调整或代码清理。
+- 【强制】删除本次变更新增的无效引用、变量和方法。既有无关问题应单独记录，不擅自修改。
+- 【强制】遵循所在文件的代码风格。变更公开行为时，同步更新相关说明和验证。
+- 【强制】提交前检查暂存区，排除 Agent 工作目录、构建产物和真实环境配置。忽略规则以 `.gitignore` 为准。
 
-### Simplicity First
+## 4. 注释与文档
 
-**Minimum code that solves the problem. Nothing speculative.**
+- 【强制】描述当前职责、约束和使用方式，不依赖对话上下文，不在代码注释中叙述修改过程。
+- 【强制】文档注释说明行为、参数、返回值和异常；行内注释说明实现理由。
+- 【强制】兼容性处理的注释须关联相应 issue 或 PR。
+- 【推荐】删除可由类型、命名或代码直接表达的注释。已有具体说明应随行为调整，不替换为泛化描述。
 
-- No features beyond what was asked.
-- No abstractions for single-use code.
-- No "flexibility" or "configurability" that wasn't requested.
-- No error handling for impossible scenarios.
-- If you write 200 lines and it could be 50, rewrite it.
+## 5. 验证要求
 
-Ask yourself: "Would a senior engineer say this is overcomplicated?" If yes, simplify.
+| 变更类型 | 验证要求 |
+| --- | --- |
+| 业务代码、架构边界 | 执行相关单元测试及 ArchUnit 检查 |
+| 持久化、缓存、装配配置 | 补充对应基础设施集成验证 |
+| 文档、示例配置 | 核对命令、路径、链接及配置契约 |
+| 前端交互 | 根据验证目标选择浏览器工具 |
 
-### Surgical Changes
-
-**Touch only what you must. Clean up only your own mess.**
-
-When editing existing code:
-
-- Don't "improve" adjacent code, comments, or formatting.
-- Don't refactor things that aren't broken.
-- Match existing style, even if you'd do it differently.
-- If you notice unrelated dead code, mention it - don't delete it.
-
-When your changes create orphans:
-
-- Remove imports/variables/functions that YOUR changes made unused.
-- Don't remove pre-existing dead code unless asked.
-
-The test: Every changed line should trace directly to the user's request.
-
-### Browser Verification
-
-Choose browser tooling based on the verification goal:
-
-- Use `agent-browser` for lightweight, interactive browser checks during development, debugging, and one-off verification.
-- Use Playwright when the behavior requires persistent, repeatable E2E regression coverage or integration with the project's automated test suite.
-- Do not add or run browser automation when simpler verification is sufficient.
-
-### Writing Comments
-
-These rules apply to **every** comment you write, including ones added incidentally while fixing a bug.
-
-- Write for a contributor reading the code at HEAD, months later, with no access to this conversation, the PR, or the diff.
-- Never narrate change history ("now", "previously", "no longer") and never address the reviewer ("this correctly handles..."). State how the code works, not how it came to be or why the change is right.
-- Deletion test: a comment must state something the reader cannot recover from the code. If names or types already carry it, don't write it.
-- `/** */` docs state the contract (behavior, params, returns, throws); `//` comments carry rationale only. Anchor a workaround to the GitHub issue or PR that motivates it.
-- When your change alters documented behavior, extend or correct the existing prose - never replace specific docs with generic text.
-
-### Verification
-
+临时浏览器检查优先使用 `agent-browser`；持续维护的端到端回归使用 Playwright。构建、接口或数据库验证已能覆盖变更时，无需增加浏览器自动化。

@@ -1,72 +1,75 @@
-# COLA 5.0 Light Modular Monolith
+# COLA 5.0 Light 模块化单体脚手架
 
-一个业务领域对应一个 Maven Module，内部按 api / adapter / application / domain / infrastructure 分层。bootstrap 是唯一组合根，最终运行一个 Spring Boot JAR。project-sample 是可复制的空白领域模板。
+基于 COLA Light 包分层的模块化单体工程。一个业务领域对应一个 Maven 模块，由 `project-bootstrap` 统一装配并输出可执行 JAR。
 
-```text
-.
-├── pom.xml
-├── AGENTS.md
-├── project-bootstrap
-├── project-shared
-├── project-sample
-│   ├── README.md
-│   ├── src/main/java
-│   └── src/test/java
-└── docs/dev-ops
-    ├── README.md
-    ├── compose
-    │   ├── docker-compose-environment.yml
-    │   ├── docker-compose-environment-dev.yml
-    │   └── docker-compose-app.yml
-    └── env
-        ├── dev.env.example
-        └── prod.env.example
-```
+## 1. 工程结构
 
-## 构建
+| 模块或目录 | 职责 |
+| --- | --- |
+| `project-bootstrap` | 应用入口、组合根、全局配置及运行镜像 |
+| `project-shared` | 通用契约与技术能力 |
+| `project-sample` | 可复制的空白领域模块模板 |
+| `docs` | 架构规约、技术基线、部署说明及验收记录 |
 
-需要 JDK21+，编译与容器目标为 Java21。使用 Maven Wrapper 或 Maven3.9+：
+领域模块内部采用 `api / adapter / application / domain / infrastructure` 五层结构。`project-sample` 的生产源码仅定义包职责，不包含业务接口、模型或数据库迁移。
+
+## 2. 快速开始
+
+构建目标为 Java 21，Maven 版本由 Wrapper 管理。开发运行需要 Docker Linux 容器及 Docker Compose。以下命令均在仓库根目录执行，Shell 示例使用 Bash；Windows 可使用 Git Bash，或通过 `./mvnw.cmd` 执行 Maven 命令。
 
 ```bash
 ./mvnw clean verify
-# Windows
-./mvnw.cmd clean verify
-# 只检查领域模板及其依赖
-./mvnw -pl project-sample -am clean verify
-```
 
-默认执行模块与全局架构规则、合法/违规依赖样例，无需数据库。模板生产源码只有 package-info.java，空 JAR 提示符合模板状态；只有 bootstrap 生成可执行 Boot JAR。复制入口为 [project-sample](project-sample/README.md)。
-
-## 开发运行
-
-从仓库根目录执行：
-
-```bash
 cp docs/dev-ops/env/dev.env.example docs/dev-ops/env/dev.env
 docker compose --env-file docs/dev-ops/env/dev.env \
   -f docs/dev-ops/compose/docker-compose-environment.yml \
   -f docs/dev-ops/compose/docker-compose-environment-dev.yml up -d --wait
-./mvnw -pl project-bootstrap -am package -DskipTests
-java -jar project-bootstrap/target/project-bootstrap-0.1.0-SNAPSHOT.jar --spring.profiles.active=dev
+
+java -jar project-bootstrap/target/project-bootstrap-0.1.0-SNAPSHOT.jar \
+  --spring.profiles.active=dev
 ```
 
-默认开发配置对应 env 示例。修改端口或凭据时，将同样的 SPRING_* 值传给本地 JVM；Compose 不会替宿主机 Java 设置环境变量。Bash/Git Bash 可使用 `set -a; source docs/dev-ops/env/dev.env; set +a`；PowerShell 使用 `$env:SPRING_DATASOURCE_URL` 等变量。
+开发配置默认使用本机 PostgreSQL 和 Redis，与 `dev.env.example` 一致。调整端口或凭据后，须同步配置宿主机 JVM 的 `SPRING_*` 环境变量；具体规则见[部署说明](docs/dev-ops/README.md)。
 
-健康探针为 /actuator/health、/actuator/health/liveness、/actuator/health/readiness；dev 文档入口为 /swagger-ui/index.html。模板没有业务端点。prod 关闭文档，所有环境都默认拒绝尚未配置授权的业务请求。显式选择 dev/prod profile。
+| 访问地址 | 用途 |
+| --- | --- |
+| `http://localhost:8080/actuator/health` | 汇总健康状态 |
+| `http://localhost:8080/actuator/health/liveness` | 存活探针 |
+| `http://localhost:8080/actuator/health/readiness` | 就绪探针，包含数据库检查 |
+| `http://localhost:8080/swagger-ui/index.html` | 开发环境接口文档 |
 
-## 基础设施测试
+启动须显式选择 `dev` 或 `prod`。健康端点允许匿名访问；业务请求默认拒绝，需在 bootstrap 配置授权。生产环境关闭接口文档。
 
-开发环境启动后执行 `./mvnw -Pintegration verify`，使用 SPRING_* 连接 PostgreSQL17、Redis7。bootstrap 测试夹具验证健康端点、Flyway、MyBatis-Plus、数据库回滚、JSON和Redis TTL/锁。
+## 3. 测试
 
-测试 SQL 位于测试资源 db/integration-migration，使用独立 integration_probe.integration_flyway_schema_history；MyBatis探针表为事务内的 PostgreSQL临时表。测试夹具不进入生产 JAR，也不占用 public 业务迁移历史；领域模板不依赖 bootstrap。不要连接生产数据库。
+| 范围 | 命令 | 外部服务 |
+| --- | --- | --- |
+| 全工程架构与规则验证 | `./mvnw clean verify` | 无 |
+| 领域模板及其依赖 | `./mvnw -pl project-sample -am clean verify` | 无 |
+| 基础设施集成验证 | `./mvnw -Pintegration verify` | PostgreSQL、Redis |
 
-## 扩展与部署
+集成测试使用测试 Mapper、事务内临时表和独立 Flyway schema，覆盖健康端点、持久化、回滚、JSON、Redis TTL 与锁所有权。仅连接开发或专用测试数据库。
 
-- [领域模板与复制步骤](project-sample/README.md)
-- [架构契约](docs/architecture.md)
-- [环境与部署](docs/dev-ops/README.md)
-- [技术基线](docs/technical-baseline.md)
+## 4. 扩展与部署
 
-构建镜像由使用方安排：先 Maven package，再 `docker build -t project-bootstrap:local project-bootstrap`。Dockerfile 位于 bootstrap；docs/dev-ops 仅管理环境与 APP_IMAGE 运行契约。
+新增领域按[模块模板说明](project-sample/README.md)复制、改名并注册。接口、仓储实现与输入适配器均由 bootstrap 显式装配。
 
-模板没有业务迁移，Flyway 为实际领域的 SQL 预留入口。如果已在旧示例数据库应用 V1__sample_create_samples.sql，请为新骨架选择新数据库；有数据的旧库需先制定兼容迁移方案，不执行 repair、清库或删卷来绕过历史校验。
+镜像使用预先构建的 bootstrap JAR。构建上下文为 `project-bootstrap`：
+
+```bash
+docker build -t project-bootstrap:local project-bootstrap
+```
+
+部署通过 `APP_IMAGE` 指定已有镜像，不绑定具体 CI/CD 平台。使用过旧 Sample 示例迁移的数据库，须按[兼容性说明](docs/sample-module-implementation-report.md#4-兼容性说明)处理。
+
+## 5. 文档索引
+
+| 文档 | 内容 |
+| --- | --- |
+| [架构设计](docs/architecture.md) | 模块职责、依赖方向与装配规约 |
+| [领域模块模板](project-sample/README.md) | 包职责、复制步骤与模块测试 |
+| [开发与部署](docs/dev-ops/README.md) | Compose、环境变量与运行步骤 |
+| [技术基线](docs/technical-baseline.md) | 组件版本及管理位置 |
+| [模板验收记录](docs/sample-module-implementation-report.md) | 当前模板的验证范围与结果 |
+| [骨架演进记录](docs/implementation-report.md) | 初期业务样例的归档记录 |
+| [开发规约](AGENTS.md) | 仓库维护与验证要求 |

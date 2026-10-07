@@ -17,7 +17,17 @@ Desktop.ini
 
 # Maven and Java build output
 **/target/
+**/build/
+**/out/
+**/dist/
+.gradle/
 *.class
+*.jar
+*.jar.original
+*.war
+*.ear
+# The Maven Wrapper bootstrap JAR is part of reproducible build tooling.
+!.mvn/wrapper/maven-wrapper.jar
 *.log
 hs_err_pid*.log
 replay_pid*.log
@@ -41,12 +51,14 @@ graphify-out/
 .memsearch/
 .agents/
 .codex/
+.claude/
+.opencode/
+.aider*
 .context-mode/
 .mcp-cache/
 .mcp-output/
-.serena/cache/
-.serena/memories/
-.serena/project.local.yml
+.serena/
+plans/
 
 # Local configuration and secrets
 docs/dev-ops/env/*.env

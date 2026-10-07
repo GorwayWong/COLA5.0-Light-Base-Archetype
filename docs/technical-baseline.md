@@ -1,28 +1,53 @@
 # 技术基线
 
-| 组件 | 基线 | 用途 |
+## 1. 版本管理
+
+依赖版本以[父 POM](../pom.xml)为准；Maven 版本由[Wrapper 配置](../.mvn/wrapper/maven-wrapper.properties)管理；环境镜像由[环境 Compose](dev-ops/compose/docker-compose-environment.yml)定义。
+
+| 组件 | 版本或配置 | 用途 |
 | --- | --- | --- |
-| COLA Light | 5.0 架构思想 | 领域模块内包分层 |
-| Java | 21 | 编译与容器目标 |
-| Spring Boot | 3.5.16 | 保留原项目父 POM |
-| MyBatis-Plus | 3.5.17 | Boot 3 starter |
-| Flyway | 11.20.3 | core + flyway-database-postgresql |
-| PostgreSQL | 17 | postgres:17-bookworm |
-| Redis | 7 | redis:7-bookworm |
-| ArchUnit | 1.5.0 | 全局规则与反例 |
-| springdoc | 2.8.17 | 开发文档 |
-| Maven Wrapper | 3.9.16 | 保留原 Wrapper |
+| COLA Light | 5.0 分层方式 | 领域模块内包分层 |
+| Java | 21 | 编译目标与容器运行时 |
+| Spring Boot | 3.5.16 | 父 POM 与基础框架 |
+| MyBatis-Plus | 3.5.17 | `mybatis-plus-spring-boot3-starter` |
+| Flyway | 11.20.3 | `flyway-core`、`flyway-database-postgresql` |
+| PostgreSQL | `postgres:17-bookworm` | 业务事实存储 |
+| Redis | `redis:7-bookworm` | 缓存与技术租约 |
+| ArchUnit | 1.5.0 | 包分层及模块边界检查 |
+| springdoc | 2.8.17 | 开发环境接口文档 |
+| Maven | 3.9.16 | Wrapper 构建版本 |
 
-镜像标签限定主版本，补丁随标签更新；生产可将 image 固定到审查过的 digest。未安装 pgvector 扩展或定义向量表。没有预设 AI SDK、OSS、LLM provider、认证业务或 CI 平台。
+## 2. 工程约定
 
-参考：
-- [COLA 官方文档](https://github.com/alibaba/COLA)
-- [MyBatis-Plus Quick Start](https://baomidou.com/en/getting-started/)
-- [MyBatis-Plus 配置](https://baomidou.com/en/reference/)：多模块 XML 使用 classpath*。
-- [MyBatis-Plus TypeHandler](https://baomidou.com/en/guides/type-handler/)：业务需要自定义持久化类型时，在 infrastructure 实现并由 bootstrap 注册。
-- [ArchUnit用户指南](https://www.archunit.org/userguide/html/000_Index.html)：空层与分层依赖检查。
-- 用户提供的小傅哥骨架 ZIP：参考环境/应用 Compose 分离、应用模块 Dockerfile 和配置组织；不继承 Java 8、Boot 2、MySQL 或部署脚本。
+| 项目 | 约定 |
+| --- | --- |
+| 编码 | UTF-8 |
+| 编译 | Java 21，保留方法参数名称 |
+| 应用打包 | bootstrap 输出可执行 JAR，领域模块与 shared 输出普通 JAR |
+| 对象映射 | MyBatis-Plus，XML 扫描使用 `classpath*:/mapper/**/*.xml` |
+| 数据迁移 | bootstrap 初始化 Flyway，实际领域维护 SQL |
+| Redis 使用 | 通用技术封装归 shared，业务缓存归领域 infrastructure |
+| 镜像运行 | Java 21，非 root 用户，使用预先构建的 JAR |
 
-领域模板改造与验证见 sample-module-implementation-report.md。implementation-report.md 和 plans/ 保留历史审查；当前契约以领域模板 README、architecture.md 和 dev-ops 文档为准。
+镜像标签限定主版本，补丁随标签更新。生产部署可固定到经过验证的镜像 digest。pgvector、AI SDK、对象存储及业务认证按实际领域需求引入。
 
-本轮真实验证使用 PostgreSQL 17.11、Redis 7.4.11 和 Temurin Java 21.0.12.1；宿主机测试使用 Java 25.0.4，Maven release 为 21。主版本镜像标签可能使后续运行获取不同补丁版本。
+## 3. 升级验证
+
+调整基线时，同步更新版本管理位置与本表，并验证：
+
+1. 依赖解析与 Java 目标版本兼容性。
+2. 默认测试及 ArchUnit 规则。
+3. 受影响的 PostgreSQL、Redis、事务或框架装配。
+4. bootstrap 打包与容器启动。
+
+[模板验收记录](sample-module-implementation-report.md)记录具体环境版本和验证结果，不作为自动跟随镜像补丁的版本声明。
+
+## 4. 参考资料
+
+- [COLA](https://github.com/alibaba/COLA)：Light 包分层。
+- [MyBatis-Plus 快速开始](https://baomidou.com/en/getting-started/)：Boot 3 Starter 与 Mapper。
+- [MyBatis-Plus 配置](https://baomidou.com/en/reference/)：多模块资源扫描。
+- [MyBatis-Plus TypeHandler](https://baomidou.com/en/guides/type-handler/)：持久化类型转换。
+- [ArchUnit 用户指南](https://www.archunit.org/userguide/html/000_Index.html)：分层规则与空层处理。
+
+工程组织参考 `xfg-frame-archetype-lite` 的配置及部署目录划分；模块职责与依赖方向按本仓库[架构规约](architecture.md)执行。
