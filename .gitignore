@@ -49,6 +49,7 @@ graphify-out/
 .serena/project.local.yml
 
 # Local configuration and secrets
+docs/dev-ops/env/*.env
 .env
 .env.*
 !.env.example
